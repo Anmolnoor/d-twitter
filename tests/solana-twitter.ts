@@ -9,6 +9,19 @@ describe("solana-twitter", () => {
 	anchor.setProvider(anchor.Provider.env());
 
 	const program = anchor.workspace.SolanaTwitter as Program<SolanaTwitter>;
+	const sendTweet = async (author, topic, content) => {
+		const tweet = anchor.web3.Keypair.generate();
+		await program.rpc.sendTweet(topic, content, {
+			accounts: {
+				tweet: tweet.publicKey,
+				author,
+				systemProgram: anchor.web3.SystemProgram.programId
+			},
+			signers: [tweet]
+		});
+
+		return tweet;
+	};
 
 	it("can send a new tweet", async () => {
 		// Before sending the transaction to the blockchain.
@@ -69,7 +82,7 @@ describe("solana-twitter", () => {
 		);
 		await program.provider.connection.confirmTransaction(signature);
 
-		// Before sending the transaction to the blockchain.
+		// Call the "SendTweet" instruction on behalf of this other user.
 		const tweet = anchor.web3.Keypair.generate();
 		await program.rpc.sendTweet("veganism", "this is working", {
 			accounts: {
@@ -179,5 +192,95 @@ describe("solana-twitter", () => {
 				return tweet.account.topic === "veganism";
 			})
 		);
+	});
+
+	it("can update a tweet", async () => {
+		// Send a tweet and fetch its account.
+		const author = program.provider.wallet.publicKey;
+		const tweet = await sendTweet(author, "web2", "Hello World!");
+		const tweetAccount = await program.account.tweet.fetch(tweet.publicKey);
+
+		// Ensure it has the right data.
+		assert.equal(tweetAccount.topic, "web2");
+		assert.equal(tweetAccount.content, "Hello World!");
+
+		// Update the Tweet.
+		await program.rpc.updateTweet("solana", "gm everyone!", {
+			accounts: {
+				tweet: tweet.publicKey,
+				author
+			}
+		});
+
+		// Ensure the updated tweet has the updated data.
+		const updatedTweetAccount = await program.account.tweet.fetch(
+			tweet.publicKey
+		);
+		assert.equal(updatedTweetAccount.topic, "solana");
+		assert.equal(updatedTweetAccount.content, "gm everyone!");
+	});
+
+	it("cannot update someone else's tweet", async () => {
+		// Send a tweet.
+		const author = program.provider.wallet.publicKey;
+		const tweet = await sendTweet(author, "solana", "Solana is awesome!");
+
+		// Update the Tweet.
+		try {
+			await program.rpc.updateTweet("eth", "Ethereum is awesome!", {
+				accounts: {
+					tweet: tweet.publicKey,
+					author: anchor.web3.Keypair.generate().publicKey
+				}
+			});
+			assert.fail("We were able to update someone else's tweet.");
+		} catch (error) {
+			// Ensure the tweet account kept the initial data.
+			const tweetAccount = await program.account.tweet.fetch(tweet.publicKey);
+			assert.equal(tweetAccount.topic, "solana");
+			assert.equal(tweetAccount.content, "Solana is awesome!");
+		}
+	});
+
+	it("can delete a tweet", async () => {
+		// Create a new tweet.
+		const author = program.provider.wallet.publicKey;
+		const tweet = await sendTweet(author, "solana", "gm");
+
+		// Delete the Tweet.
+		await program.rpc.deleteTweet({
+			accounts: {
+				tweet: tweet.publicKey,
+				author
+			}
+		});
+
+		// Ensure fetching the tweet account returns null.
+		const tweetAccount = await program.account.tweet.fetchNullable(
+			tweet.publicKey
+		);
+		assert.ok(tweetAccount === null);
+	});
+
+	it("cannot delete someone else's tweet", async () => {
+		// Create a new tweet.
+		const author = program.provider.wallet.publicKey;
+		const tweet = await sendTweet(author, "solana", "gm");
+
+		// Try to delete the Tweet from a different author.
+		try {
+			await program.rpc.deleteTweet({
+				accounts: {
+					tweet: tweet.publicKey,
+					author: anchor.web3.Keypair.generate().publicKey
+				}
+			});
+			assert.fail("We were able to delete someone else's tweet.");
+		} catch (error) {
+			// Ensure the tweet account still exists with the right data.
+			const tweetAccount = await program.account.tweet.fetch(tweet.publicKey);
+			assert.equal(tweetAccount.topic, "solana");
+			assert.equal(tweetAccount.content, "gm");
+		}
 	});
 });
