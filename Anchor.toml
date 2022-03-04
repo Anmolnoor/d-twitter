@@ -1,19 +1,19 @@
 [features]
 seeds = false
 [programs.localnet]
-solana_twitter = "FWktdUkhQ8SevB6NWYvz664ecKbsE2kcf11UZiXNa3Jp"
+solana_twitter = "12RzuzpVJ5QS4Lrzw9hz9A1WYFRUxm3NpL3AMnPBNw9D"
 
 [programs.devnet]
-solana_twitter = "FWktdUkhQ8SevB6NWYvz664ecKbsE2kcf11UZiXNa3Jp"
+solana_twitter = "12RzuzpVJ5QS4Lrzw9hz9A1WYFRUxm3NpL3AMnPBNw9D"
 
 [programs.mainnet]
-solana_twitter = "FWktdUkhQ8SevB6NWYvz664ecKbsE2kcf11UZiXNa3Jp"
+solana_twitter = "12RzuzpVJ5QS4Lrzw9hz9A1WYFRUxm3NpL3AMnPBNw9D"
 
 [registry]
 url = "https://anchor.projectserum.com"
 
 [provider]
-cluster = "localnet"
+cluster = "devnet"
 wallet = "/home/anmol/.config/solana/id.json"
 
 [scripts]
